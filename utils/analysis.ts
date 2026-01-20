@@ -162,19 +162,61 @@ export const runFullAnalysis = (readings: NerveReading[], patient: PatientData, 
   const s2Total = score2Details.reduce((acc, curr) => acc + curr.points, 0);
   const s4Total = score4Details.reduce((acc, curr) => acc + curr.points, 0);
   
-  // Score #2 Diagnosis Rule
+  // --- LÓGICA SCORE #2 (DIAGNÓSTICO) ---
+  // Condición: Total >= 2
+  // Sub-condición A: Sural alterado + Motor (Ulnar, Tibial o Fibular) alterado -> Sensitivo Motora
+  // Sub-condición B: Sural alterado + Motor NO alterado -> Sensitiva
+  
   const s2Abnormal = s2Total >= 2;
-  const diagnosisClass = s2Abnormal ? TEXTS[lang].abnormal : TEXTS[lang].normal;
-  const interpretationBody = s2Abnormal ? TEXTS[lang].s2AbnormalBody : TEXTS[lang].s2NormalBody;
   
-  // Score #4 Severity Rule
-  // 7-8: Severa, 4-6: Moderada, 2-3: Leve, <2: Normal
-  const s4Abnormal = s4Total >= 2;
+  // Calcular puntos específicos por tipo de nervio en Score 2
+  const suralPointsScore2 = score2Details
+    .filter(d => d.nerve.includes('Sural'))
+    .reduce((acc, curr) => acc + curr.points, 0);
+
+  // Consideramos motores a Tibial, Fibular y Ulnar
+  const motorPointsScore2 = score2Details
+    .filter(d => !d.nerve.includes('Sural'))
+    .reduce((acc, curr) => acc + curr.points, 0);
+
+  let diagnosisClass = TEXTS[lang].normal;
+  let interpretationBody = TEXTS[lang].s2NormalBody;
+
+  if (s2Abnormal) {
+    diagnosisClass = TEXTS[lang].abnormal;
+    
+    // Regla: Score >= 2 y al menos un motor y el sural afectados
+    if (suralPointsScore2 > 0 && motorPointsScore2 > 0) {
+      interpretationBody = TEXTS[lang].s2SensorimotorBody;
+    } 
+    // Regla: Score >= 2 y solo sural afectado (motores en 0)
+    else if (suralPointsScore2 > 0 && motorPointsScore2 === 0) {
+      interpretationBody = TEXTS[lang].s2SensoryBody;
+    } 
+    // Caso borde: Si solo motores suman >= 2 (Poco probable en DSPN clásica pero posible matemáticamente)
+    else {
+      interpretationBody = TEXTS[lang].s2AbnormalGeneric;
+    }
+  }
   
-  let severityLabel = TEXTS[lang].normal; 
-  if (s4Total >= 7) severityLabel = TEXTS[lang].severe;
-  else if (s4Total >= 4) severityLabel = TEXTS[lang].moderate;
-  else if (s4Total >= 2) severityLabel = TEXTS[lang].mild;
+  // --- LÓGICA SCORE #4 (SEVERIDAD / DAÑO AXONAL) ---
+  // Condición Anormal: Total >= 1
+  // 0 pts: Sin evidencia de daño axonal
+  // 1-2 pts: Leve
+  // 3-5 pts: Moderada
+  // 6-8 pts: Severa
+  
+  const s4Abnormal = s4Total >= 1;
+  
+  let severityLabel = TEXTS[lang].noAxonalDamage; // Default para 0 pts
+
+  if (s4Total >= 6) {
+    severityLabel = TEXTS[lang].severe;
+  } else if (s4Total >= 3) {
+    severityLabel = TEXTS[lang].moderate;
+  } else if (s4Total >= 1) {
+    severityLabel = TEXTS[lang].mild;
+  }
   
   // Composite string for display
   const finalSeverityClass = `${diagnosisClass} / ${severityLabel}`;
