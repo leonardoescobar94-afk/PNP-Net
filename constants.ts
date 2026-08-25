@@ -1,27 +1,31 @@
-import { ReferenceValue, NerveType } from './types';
+import { NERVE_NAMES, NerveId, NerveType, type ReferenceValue } from './types.ts';
 
 // Valores base. Los límites reales se calculan dinámicamente en analysis.ts
 export const DEFAULT_REFERENCES: ReferenceValue[] = [
   {
-    nerveName: 'Tibial (Motor)',
+    nerveId: NerveId.TIBIAL,
+    nerveName: NERVE_NAMES[NerveId.TIBIAL],
     type: NerveType.MOTOR,
     minAmplitude: 0, // Dinámico
     minVelocity: 0   // Dinámico
   },
   {
-    nerveName: 'Fibular (Motor)',
+    nerveId: NerveId.FIBULAR,
+    nerveName: NERVE_NAMES[NerveId.FIBULAR],
     type: NerveType.MOTOR,
     minAmplitude: 0, // Dinámico
     minVelocity: 0   // Dinámico
   },
   {
-    nerveName: 'Ulnar (Motor)',
+    nerveId: NerveId.ULNAR,
+    nerveName: NERVE_NAMES[NerveId.ULNAR],
     type: NerveType.MOTOR,
     minAmplitude: 7.4, // 11.6 - (2 * 2.1)
     minVelocity: 51    // 61 - (2 * 5)
   },
   {
-    nerveName: 'Sural (Sensitivo)',
+    nerveId: NerveId.SURAL,
+    nerveName: NERVE_NAMES[NerveId.SURAL],
     type: NerveType.SENSORY,
     maxPeakLatency: 4.4, // 3.8 + (2 * 0.3)
     minAmplitude: 0,      // 17 - (2 * 10) -> se tratará con cuidado por ser SD alta
@@ -34,7 +38,7 @@ export const TEXTS = {
     title: "Polineuropathy-Assistant PMR",
     subtitle: "Clasificación electrofisiológica de la severidad de la polineuropatía diabética.",
     professionalTool: "HERRAMIENTA PROFESIONAL",
-    basedOn: "Basado en Percentiles Normalizados (Davies et al.)",
+    basedOn: "Score electrodiagnóstico percentilar adaptado del enfoque de puntuación compuesta descrito por Davies et al.",
     patientInfo: "Información del Paciente",
     age: "Edad",
     height: "Altura (cm)",
@@ -61,7 +65,11 @@ export const TEXTS = {
     severity: "SEVERIDAD",
     score2Title: "Score #2 (Conducción)",
     score4Title: "Score #4 (Amplitud)",
-    downloadTxt: "Descargar TXT",
+    copySummary: "Copiar resumen",
+    copied: "Copiado",
+    ageValidation: "La edad debe estar entre 19 y 79 años para calcular los scores.",
+    heightValidation: "La talla debe ser un número válido mayor que 0 cm.",
+    incompleteAnalysis: "No es posible calcular los scores: existen parámetros faltantes o inválidos.",
     printReport: "Imprimir Informe",
     aiAssistant: "Asistente Inteligente PM&R",
     aiPrompt: "Genere un resumen clínico basado en los hallazgos electrofisiológicos usando IA.",
@@ -99,7 +107,7 @@ export const TEXTS = {
     title: "Polineuropathy-Assistant PMR",
     subtitle: "Electrophysiological classification of diabetic polyneuropathy severity.",
     professionalTool: "PROFESSIONAL TOOL",
-    basedOn: "Based on Normalized Percentiles (Davies et al.)",
+    basedOn: "Percentile-based electrodiagnostic score adapted from the compound scoring approach described by Davies et al.",
     patientInfo: "Patient Information",
     age: "Age",
     height: "Height (cm)",
@@ -126,7 +134,11 @@ export const TEXTS = {
     severity: "SEVERITY",
     score2Title: "Score #2 (Conduction)",
     score4Title: "Score #4 (Amplitude)",
-    downloadTxt: "Download TXT",
+    copySummary: "Copy summary",
+    copied: "Copied",
+    ageValidation: "Age must be between 19 and 79 years to calculate the scores.",
+    heightValidation: "Height must be a valid number greater than 0 cm.",
+    incompleteAnalysis: "Scores cannot be calculated because required parameters are missing or invalid.",
     printReport: "Print Report",
     aiAssistant: "PM&R Smart Assistant",
     aiPrompt: "Generate a clinical summary based on electrophysiological findings using AI.",
