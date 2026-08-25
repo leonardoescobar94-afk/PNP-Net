@@ -1,340 +1,63 @@
+import { NERVE_NAMES, NerveId, NerveType, type NerveReading, type PatientData, type ScoreDetail, type AnalysisResult, type AnalysisIssue } from '../types.ts';
+import { TEXTS } from '../constants.ts';
 
-import { NerveReading, PatientData, ScoreDetail, AnalysisResult, NerveType } from '../types';
-import { TEXTS } from '../constants';
+export type MeasurementStatus = ScoreDetail['status'];
+export type ScoringRuleId = 'STANDARD' | 'SURAL_LATENCY' | 'SURAL_AMPLITUDE' | 'TIBIAL_AMPLITUDE_60_79' | 'FIBULAR_AMPLITUDE_40_79';
+type Threshold = { boundary: number; points: number; inclusive: boolean };
+type ScoringRule = { direction: 'LOWER_IS_ABNORMAL'|'HIGHER_IS_ABNORMAL'; thresholds: Threshold[]; nrPoints: number; label: {es:string;en:string} };
 
-/**
- * Función de Distribución Acumulada (CDF) para la distribución normal estándar.
- */
-const normCDF = (x: number): number => {
-  const t = 1 / (1 + 0.2316419 * Math.abs(x));
-  const d = 0.3989423 * Math.exp(-x * x / 2);
-  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.7814779 + t * (-1.821256 + t * 1.3302744))));
-  return x >= 0 ? 1 - p : p;
+export const SCORING_RULES: Record<ScoringRuleId, ScoringRule> = {
+  STANDARD: { direction:'LOWER_IS_ABNORMAL', thresholds:[{boundary:.01,points:2,inclusive:false},{boundary:.03,points:1,inclusive:false}], nrPoints:2, label:{es:'Regla estándar',en:'Standard rule'} },
+  SURAL_LATENCY: { direction:'HIGHER_IS_ABNORMAL', thresholds:[{boundary:.99,points:2,inclusive:false},{boundary:.97,points:1,inclusive:false}], nrPoints:2, label:{es:'Latencia sural',en:'Sural latency'} },
+  SURAL_AMPLITUDE: { direction:'LOWER_IS_ABNORMAL', thresholds:[{boundary:.067,points:2,inclusive:false},{boundary:.097,points:1,inclusive:false}], nrPoints:2, label:{es:'Amplitud sural',en:'Sural amplitude'} },
+  TIBIAL_AMPLITUDE_60_79: { direction:'LOWER_IS_ABNORMAL', thresholds:[{boundary:.018,points:2,inclusive:false},{boundary:.03,points:1,inclusive:false}], nrPoints:2, label:{es:'Amplitud tibial (60–79 años)',en:'Tibial amplitude (ages 60–79)'} },
+  FIBULAR_AMPLITUDE_40_79: { direction:'LOWER_IS_ABNORMAL', thresholds:[{boundary:.03,points:2,inclusive:false},{boundary:.055,points:1,inclusive:false}], nrPoints:2, label:{es:'Amplitud fibular (40–79 años)',en:'Fibular amplitude (ages 40–79)'} },
 };
-
-const getZScore = (value: number, mean: number, sd: number) => (value - mean) / sd;
-
-/**
- * Linear Interpolation
- */
-const lerp = (start: number, end: number, t: number): number => {
-  return start * (1 - t) + end * t;
-};
-
-/**
- * Returns a factor between 0 and 1 based on where 'value' falls within a transition window.
- * Below window = 0, Above window = 1.
- */
-const getTransitionFactor = (value: number, threshold: number, windowSize: number): number => {
-  const halfWindow = windowSize / 2;
-  const start = threshold - halfWindow;
-  const end = threshold + halfWindow;
-  
-  if (value <= start) return 0;
-  if (value >= end) return 1;
-  return (value - start) / windowSize;
-};
-
-/**
- * CONTINUOUS MODEL PREDICTORS
- * These functions calculate Mean and SD based on Age and Height using continuous interpolation
- * to avoid step artifacts at bin boundaries.
- */
-
-// Tibial Amplitude: Transitions at 30 and 60.
-// Data Points derived from: 
-// <30: 15.3, 4.5
-// 30-59: 12.9, 4.5
-// >60: 9.8, 4.2
-const getTibialAmpStats = (age: number) => {
-  // Define states
-  const young = { mean: 15.3, sd: 4.5 };
-  const middle = { mean: 12.9, sd: 4.5 };
-  const old = { mean: 9.8, sd: 4.2 }; // SD modified to 4.2 as per user request
-
-  // Transition 1: Around age 30 (25-35)
-  const t1 = getTransitionFactor(age, 30, 10);
-  // Transition 2: Around age 60 (55-65)
-  const t2 = getTransitionFactor(age, 60, 10);
-
-  // If completely young
-  if (t1 === 0) return young;
-  
-  // Interpolate Young -> Middle
-  if (t1 > 0 && t1 < 1) {
-    return {
-      mean: lerp(young.mean, middle.mean, t1),
-      sd: lerp(young.sd, middle.sd, t1)
-    };
+const pct=(value:number)=>`${Number((value*100).toFixed(3))}`;
+export const describeScoringRule = (id: ScoringRuleId, lang:'es'|'en'='es') => {
+  const rule=SCORING_RULES[id], [severe,mild]=rule.thresholds;
+  const es=lang==='es';
+  if(rule.direction==='LOWER_IS_ABNORMAL') {
+    const severeOperator=severe.inclusive?'≤':'<', mildOperator=mild.inclusive?'≤':'<';
+    const middleLowerOperator=severe.inclusive?'>':'≥', normalOperator=mild.inclusive?'>':'≥';
+    return `${rule.label[lang]}: ${severeOperator}P${pct(severe.boundary)} = 2 ${es?'puntos':'points'}; ${middleLowerOperator}P${pct(severe.boundary)}–${mildOperator}P${pct(mild.boundary)} = 1; ${normalOperator}P${pct(mild.boundary)} = 0; NR = ${rule.nrPoints}.`;
   }
-
-  // If completely middle (before old transition)
-  if (t2 === 0) return middle;
-
-  // Interpolate Middle -> Old
-  return {
-    mean: lerp(middle.mean, old.mean, t2),
-    sd: lerp(middle.sd, old.sd, t2)
-  };
+  const severeOperator=severe.inclusive?'≥':'>', mildOperator=mild.inclusive?'≥':'>';
+  const middleUpperOperator=severe.inclusive?'<':'≤', normalOperator=mild.inclusive?'<':'≤';
+  return `${rule.label[lang]}: ${severeOperator}P${pct(severe.boundary)} = 2 ${es?'puntos':'points'}; ${mildOperator}P${pct(mild.boundary)}–${middleUpperOperator}P${pct(severe.boundary)} = 1; ${normalOperator}P${pct(mild.boundary)} = 0; NR = ${rule.nrPoints}.`;
 };
-
-// Fibular Amplitude: Transition at 40.
-// <40: 6.8, 2.5
-// >40: 5.1, 2.5
-const getFibularAmpStats = (age: number) => {
-  const young = { mean: 6.8, sd: 2.5 };
-  const old = { mean: 5.1, sd: 2.5 };
-
-  // Transition around age 40 (35-45)
-  const t = getTransitionFactor(age, 40, 10);
-
-  return {
-    mean: lerp(young.mean, old.mean, t),
-    sd: lerp(young.sd, old.sd, t)
-  };
-};
-
-// Tibial Velocity: Depends on Age and Height.
-// Age Split: 50 (Transition 45-55)
-// Height Anchors: 155 (<160), 165 (160-169), 175 (>170)
-const getTibialVelStats = (age: number, height: number) => {
-  // Helper to interpolate across height anchors
-  const interpolateHeight = (h: number, v155: number, v165: number, v175: number) => {
-    if (h <= 155) return v155;
-    if (h >= 175) return v175;
-    if (h < 165) return lerp(v155, v165, (h - 155) / 10);
-    return lerp(v165, v175, (h - 165) / 10);
-  };
-
-  // Define Groups
-  // Group A (Young < 50)
-  const meanA = interpolateHeight(height, 51, 49, 47);
-  const sdA = interpolateHeight(height, 4, 6, 5);
-
-  // Group B (Old >= 50)
-  const meanB = interpolateHeight(height, 49, 45, 44); // 44 as per modified request
-  const sdB = interpolateHeight(height, 5, 5, 5);
-
-  // Blend based on Age (Window 45-55)
-  const tAge = getTransitionFactor(age, 50, 10);
-
-  return {
-    mean: lerp(meanA, meanB, tAge),
-    sd: lerp(sdA, sdB, tAge)
-  };
-};
-
-// Fibular Velocity: Depends on Age and Height.
-// Age Split: 40 (Transition 35-45)
-// Height Split: 170 (Transition 165-175)
-const getFibularVelStats = (age: number, height: number) => {
-  // Young (<40)
-  const youngLowH = { mean: 49, sd: 4 };
-  const youngHighH = { mean: 46, sd: 4 };
-
-  // Old (>=40)
-  const oldLowH = { mean: 47, sd: 5 };
-  const oldHighH = { mean: 44, sd: 4 };
-
-  // Height Transition Factor (0 = <165, 1 = >175)
-  const tHeight = getTransitionFactor(height, 170, 10);
-
-  // Resolve Height first
-  const currentYoung = {
-    mean: lerp(youngLowH.mean, youngHighH.mean, tHeight),
-    sd: lerp(youngLowH.sd, youngHighH.sd, tHeight)
-  };
-
-  const currentOld = {
-    mean: lerp(oldLowH.mean, oldHighH.mean, tHeight),
-    sd: lerp(oldLowH.sd, oldHighH.sd, tHeight)
-  };
-
-  // Resolve Age second (Window 35-45)
-  const tAge = getTransitionFactor(age, 40, 10);
-
-  return {
-    mean: lerp(currentYoung.mean, currentOld.mean, tAge),
-    sd: lerp(currentYoung.sd, currentOld.sd, tAge)
-  };
-};
-
-
-const calculatePoints = (
-  percentile: number, 
-  nerveName: string, 
-  paramType: 'vel' | 'lat' | 'amp', 
-  age: number
-): number => {
-  // Latency (Sural) - Score 2
-  if (paramType === 'lat') {
-    if (percentile > 0.99) return 2;
-    if (percentile > 0.97) return 1; // Modified to 97
-    return 0;
-  }
-
-  // Amplitude - Score 4 Exceptions
-  // Note: While the Stats are continuous, the SCORING RULES (Cutoffs) remain specific to age groups
-  // as defined in the requirements.
-  if (paramType === 'amp') {
-    // Sural Amplitude Exception
-    if (nerveName.includes('Sural')) {
-      if (percentile < 0.067) return 2; // Modified to 6.7
-      if (percentile < 0.097) return 1; // Modified to 9.7
-      return 0;
-    }
-
-    // Tibial Amplitude Exception (Age 60-79)
-    if (nerveName.includes('Tibial') && age >= 60 && age <= 79) {
-      if (percentile < 0.018) return 2; // Modified to 1.8
-      if (percentile < 0.030) return 1; // Modified to 3.0
-      return 0;
-    }
-
-    // Fibular (Peroneal) Amplitude Exception (Age 40-79)
-    if (nerveName.includes('Fibular') && age >= 40 && age <= 79) {
-      if (percentile < 0.03) return 2; // Modified to 3
-      if (percentile < 0.055) return 1; // Modified to 5.5
-      return 0;
-    }
-  }
-
-  // Standard Rule for Velocity and other Amplitudes
-  // < 1st percentile -> 2 points
-  // < 3rd percentile -> 1 point (Modified to 3)
-  // 3rd to 95th -> 0 points
-  if (percentile < 0.01) return 2;
-  if (percentile < 0.03) return 1;
+export const calculatePoints=(p:number,id:ScoringRuleId)=>{
+  const rule=SCORING_RULES[id];
+  for(const t of rule.thresholds){ const match=rule.direction==='LOWER_IS_ABNORMAL' ? (t.inclusive?p<=t.boundary:p<t.boundary) : (t.inclusive?p>=t.boundary:p>t.boundary); if(match)return t.points; }
   return 0;
 };
+export const calculateNrPoints=(id:ScoringRuleId)=>SCORING_RULES[id].nrPoints;
 
-const parseInputValue = (val: string | number): number | 'NR' => {
-  if (typeof val === 'string' && val.trim().toUpperCase() === 'NR') return 'NR';
-  const parsed = typeof val === 'string' ? parseFloat(val.replace(',', '.')) : val;
-  return isNaN(parsed) ? 0 : parsed;
-};
+/** Numerical approximation of the standard normal CDF. */
+export const normCDF=(x:number)=>{const t=1/(1+.2316419*Math.abs(x));const d=.3989423*Math.exp(-x*x/2);const p=d*t*(.3193815+t*(-.3565638+t*(1.7814779+t*(-1.821256+t*1.3302744))));return x>=0?1-p:p;};
+export const getZScore=(value:number,mean:number,sd:number)=>(value-mean)/sd;
+const lerp=(start:number,end:number,t:number)=>start*(1-t)+end*t;
+const getTransitionFactor=(value:number,threshold:number,windowSize:number)=>{const start=threshold-windowSize/2,end=threshold+windowSize/2;if(value<=start)return 0;if(value>=end)return 1;return(value-start)/windowSize;};
+export const getTibialAmpStats=(age:number)=>{const young={mean:15.3,sd:4.5},middle={mean:12.9,sd:4.5},old={mean:9.8,sd:4.2};const t1=getTransitionFactor(age,30,10),t2=getTransitionFactor(age,60,10);if(t1===0)return young;if(t1<1)return{mean:lerp(young.mean,middle.mean,t1),sd:lerp(young.sd,middle.sd,t1)};if(t2===0)return middle;return{mean:lerp(middle.mean,old.mean,t2),sd:lerp(middle.sd,old.sd,t2)};};
+export const getFibularAmpStats=(age:number)=>{const t=getTransitionFactor(age,40,10);return{mean:lerp(6.8,5.1,t),sd:2.5};};
+export const getTibialVelStats=(age:number,height:number)=>{const ih=(h:number,a:number,b:number,c:number)=>h<=155?a:h>=175?c:h<165?lerp(a,b,(h-155)/10):lerp(b,c,(h-165)/10);const t=getTransitionFactor(age,50,10);return{mean:lerp(ih(height,51,49,47),ih(height,49,45,44),t),sd:lerp(ih(height,4,6,5),5,t)};};
+export const getFibularVelStats=(age:number,height:number)=>{const th=getTransitionFactor(height,170,10),ta=getTransitionFactor(age,40,10);return{mean:lerp(lerp(49,46,th),lerp(47,44,th),ta),sd:lerp(4,lerp(5,4,th),ta)};};
 
-export const runFullAnalysis = (readings: NerveReading[], patient: PatientData, lang: 'es' | 'en' = 'es'): AnalysisResult => {
-  const score2Details: ScoreDetail[] = [];
-  const score4Details: ScoreDetail[] = [];
+export const getApplicableScoringRule=(nerveId:NerveId,parameter:ScoreDetail['parameter'],age:number):ScoringRuleId=>{if(parameter==='peakLatency')return'SURAL_LATENCY';if(parameter==='amplitude'&&nerveId===NerveId.SURAL)return'SURAL_AMPLITUDE';if(parameter==='amplitude'&&nerveId===NerveId.TIBIAL&&age>=60&&age<=79)return'TIBIAL_AMPLITUDE_60_79';if(parameter==='amplitude'&&nerveId===NerveId.FIBULAR&&age>=40&&age<=79)return'FIBULAR_AMPLITUDE_40_79';return'STANDARD';};
+const parseMeasurement=(raw:string|number|undefined,amplitude:boolean):{status:MeasurementStatus;value?:number;display:string|number}=>{if(raw===undefined||(typeof raw==='string'&&raw.trim()===''))return{status:'MISSING',display:''};if(typeof raw==='string'&&['NR','N'].includes(raw.trim().toUpperCase()))return{status:'NR',display:'NR'};const normalized=typeof raw==='string'?raw.trim().replace(',','.'):raw;if((typeof normalized==='string'&&!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized))||!Number.isFinite(Number(normalized)))return{status:'INVALID',display:String(raw)};const value=Number(normalized);if(amplitude&&value===0)return{status:'NR',value:0,display:'NR (0)'};if(value<=0)return{status:'INVALID',value,display:value};return{status:'VALID',value,display:value};};
+const makeDetail=(nerveId:NerveId,nerve:string,parameter:ScoreDetail['parameter'],unit:ScoreDetail['unit'],raw:string|number|undefined,stats:{mean:number;sd:number},age:number,lang:'es'|'en'):ScoreDetail=>{const parsed=parseMeasurement(raw,parameter==='amplitude'),ruleId=getApplicableScoringRule(nerveId,parameter,age);const base={nerveId,nerve,parameter,unit,value:parsed.display,status:parsed.status,referenceMean:stats.mean,referenceSD:stats.sd,points:null,scoringRuleId:ruleId,scoringRuleDescription:describeScoringRule(ruleId,lang)};if(parsed.status==='NR')return{...base,points:calculateNrPoints(ruleId)};if(parsed.status!=='VALID'||parsed.value===undefined)return base;const zScore=getZScore(parsed.value,stats.mean,stats.sd),percentile=normCDF(zScore);return{...base,value:parsed.value,zScore,percentile,points:calculatePoints(percentile,ruleId)};};
 
-  const ulnarStats = { amp: { mean: 11.6, sd: 2.1 }, vel: { mean: 61, sd: 5 } };
-  const suralStats = { lat: { mean: 3.8, sd: 0.3 }, amp: { mean: 17, sd: 10 } };
-
-  // Variables para rastrear puntos específicos para la lógica de diagnóstico Score #2
-  let s2SuralPoints = 0;
-  let s2MotorPoints = 0;
-
-  readings.forEach(r => {
-    let stats: { amp?: { mean: number, sd: number }, vel?: { mean: number, sd: number }, lat?: { mean: number, sd: number } } = {};
-    
-    // Select Continuous Prediction Models
-    if (r.nerveName.includes('Tibial')) {
-      stats = {
-        amp: getTibialAmpStats(patient.age),
-        vel: getTibialVelStats(patient.age, patient.height)
-      };
-    } else if (r.nerveName.includes('Fibular')) {
-      stats = {
-        amp: getFibularAmpStats(patient.age),
-        vel: getFibularVelStats(patient.age, patient.height)
-      };
-    } else if (r.nerveName.includes('Ulnar')) {
-      stats = ulnarStats;
-    } else if (r.nerveName.includes('Sural')) {
-      stats = suralStats;
-    }
-
-    const vVal = parseInputValue(r.velocity);
-    const aVal = parseInputValue(r.amplitude);
-    const pVal = r.peakLatency ? parseInputValue(r.peakLatency) : 0;
-
-    // --- Score #2 (Diagnóstico) ---
-    // Considera: Velocidad Fibular, Tibial, Ulnar (Motor) y Latencia Sural (Sensitivo)
-    if (r.type === NerveType.MOTOR) {
-      if (vVal === 'NR') {
-        const pts = 2;
-        s2MotorPoints += pts;
-        score2Details.push({ nerve: r.nerveName, value: 'NR', percentile: 0.001, points: pts });
-      } else if (vVal > 0 && stats.vel) {
-        const z = getZScore(vVal, stats.vel.mean, stats.vel.sd);
-        const p = normCDF(z);
-        const points = calculatePoints(p, r.nerveName, 'vel', patient.age);
-        s2MotorPoints += points;
-        score2Details.push({ nerve: r.nerveName, value: vVal, percentile: p, points });
-      }
-    } else if (r.nerveName.includes('Sural')) {
-      if (pVal === 'NR') {
-        const pts = 2;
-        s2SuralPoints += pts;
-        score2Details.push({ nerve: 'Sural (Latencia)', value: 'NR', percentile: 0.999, points: pts });
-      } else if (pVal > 0 && stats.lat) {
-        const z = getZScore(pVal, stats.lat.mean, stats.lat.sd);
-        const p = normCDF(z);
-        const points = calculatePoints(p, r.nerveName, 'lat', patient.age);
-        s2SuralPoints += points;
-        score2Details.push({ nerve: 'Sural (Latencia)', value: pVal, percentile: p, points });
-      }
-    }
-
-    // --- Score #4 (Severidad) ---
-    // Considera: Amplitud de todos (Fibular, Tibial, Ulnar, Sural)
-    if (aVal === 'NR') {
-      score4Details.push({ nerve: r.nerveName, value: 'NR', percentile: 0.001, points: 2 });
-    } else if (aVal > 0 && stats.amp) {
-      const z = getZScore(aVal, stats.amp.mean, stats.amp.sd);
-      const p = normCDF(z);
-      const points = calculatePoints(p, r.nerveName, 'amp', patient.age);
-      score4Details.push({ nerve: r.nerveName, value: aVal, percentile: p, points });
-    }
-  });
-
-  const s2Total = score2Details.reduce((acc, curr) => acc + curr.points, 0);
-  const s4Total = score4Details.reduce((acc, curr) => acc + curr.points, 0);
-  
-  // --- Clasificación Score #2 ---
-  let interpretationBody = TEXTS[lang].s2NormalBody;
-  let s2Abnormal = false;
-  let diagnosisClass = TEXTS[lang].normal;
-
-  if (s2Total >= 2) {
-    s2Abnormal = true;
-    diagnosisClass = TEXTS[lang].abnormal;
-    // Lógica específica:
-    // Sural alterado (>0) y al menos un motor alterado (>0) -> Sensitivo Motora
-    if (s2SuralPoints > 0 && s2MotorPoints > 0) {
-      interpretationBody = TEXTS[lang].s2SensorimotorBody;
-    } 
-    // Sural alterado (>0) y motores normales (0) -> Sensitiva
-    else if (s2SuralPoints > 0 && s2MotorPoints === 0) {
-      interpretationBody = TEXTS[lang].s2SensoryBody;
-    } 
-    // Caso borde: Sural normal (0) pero Score total >= 2 (significa motores muy afectados)
-    else {
-      interpretationBody = TEXTS[lang].s2AbnormalGeneric;
-    }
-  }
-  
-  // --- Clasificación Score #4 (Severidad) ---
-  // 0 pts: Sin evidencia de daño axonal
-  // 1-2 pts: Leve
-  // 3-5 pts: Moderada
-  // 6-8 pts: Severa
-  
-  const s4Abnormal = s4Total >= 1; // Anormal si >= 1
-  
-  let severityLabel = TEXTS[lang].noAxonalDamage; 
-  if (s4Total >= 6) severityLabel = TEXTS[lang].severe;
-  else if (s4Total >= 3) severityLabel = TEXTS[lang].moderate;
-  else if (s4Total >= 1) severityLabel = TEXTS[lang].mild;
-  
-  // Composite string for display
-  const finalSeverityClass = `${diagnosisClass} / ${severityLabel}`;
-
-  return {
-    score2: { total: s2Total, isAbnormal: s2Abnormal, details: score2Details, interpretationBody },
-    score4: { total: s4Total, isAbnormal: s4Abnormal, details: score4Details, severityLabel },
-    severityClass: finalSeverityClass,
-    diagnosisClass: diagnosisClass
-  };
+const EXPECTED:Record<NerveId,NerveType>={[NerveId.TIBIAL]:NerveType.MOTOR,[NerveId.FIBULAR]:NerveType.MOTOR,[NerveId.ULNAR]:NerveType.MOTOR,[NerveId.SURAL]:NerveType.SENSORY};
+const validateReadings=(readings:NerveReading[])=>{const known=new Set(Object.values(NerveId));for(const r of readings){if(!known.has(r.nerveId as NerveId))throw new Error(`Unknown nerve identifier: ${String(r.nerveId)}`);if(r.nerveName!==NERVE_NAMES[r.nerveId])throw new Error(`Nerve name does not match identifier ${r.nerveId}: expected ${NERVE_NAMES[r.nerveId]}`);}for(const id of Object.values(NerveId)){const matches=readings.filter(r=>r.nerveId===id);if(matches.length===0)throw new Error(`Required nerve is missing: ${id}`);if(matches.length>1)throw new Error(`Duplicate nerve measurement: ${id}`);if(matches[0].type!==EXPECTED[id])throw new Error(`Incorrect nerve type for ${id}: expected ${EXPECTED[id]}`);}if(readings.length!==4)throw new Error('Exactly four required nerve measurements are allowed.');};
+export const getScore4Severity=(total:number,lang:'es'|'en'='es')=>total>=6?TEXTS[lang].severe:total>=3?TEXTS[lang].moderate:total>=1?TEXTS[lang].mild:TEXTS[lang].noAxonalDamage;
+export const classifyScore2=(total:number,suralPoints:number,motorPoints:number,lang:'es'|'en'='es')=>total<2?TEXTS[lang].s2NormalBody:suralPoints>0&&motorPoints>0?TEXTS[lang].s2SensorimotorBody:suralPoints>0?TEXTS[lang].s2SensoryBody:TEXTS[lang].s2AbnormalGeneric;
+export const runFullAnalysis=(readings:NerveReading[],patient:PatientData,lang:'es'|'en'='es'):AnalysisResult=>{
+ if(!Number.isFinite(patient.age)||patient.age<19||patient.age>79)throw new RangeError(TEXTS[lang].ageValidation);
+ if(!Number.isFinite(patient.height)||patient.height<=0)throw new RangeError(TEXTS[lang].heightValidation);
+ validateReadings(readings);const score2Details:ScoreDetail[]=[],score4Details:ScoreDetail[]=[];
+ for(const r of readings){let stats:{amp:{mean:number;sd:number};vel?:{mean:number;sd:number};lat?:{mean:number;sd:number}};switch(r.nerveId){case NerveId.TIBIAL:stats={amp:getTibialAmpStats(patient.age),vel:getTibialVelStats(patient.age,patient.height)};break;case NerveId.FIBULAR:stats={amp:getFibularAmpStats(patient.age),vel:getFibularVelStats(patient.age,patient.height)};break;case NerveId.ULNAR:stats={amp:{mean:11.6,sd:2.1},vel:{mean:61,sd:5}};break;case NerveId.SURAL:stats={amp:{mean:17,sd:10},lat:{mean:3.8,sd:.3}};break;default:throw new Error(`Unknown nerve identifier: ${String(r.nerveId)}`);}
+  if(r.nerveId===NerveId.SURAL)score2Details.push(makeDetail(r.nerveId,r.nerveName,'peakLatency','ms',r.peakLatency,stats.lat!,patient.age,lang));else score2Details.push(makeDetail(r.nerveId,r.nerveName,'velocity','m/s',r.velocity,stats.vel!,patient.age,lang));score4Details.push(makeDetail(r.nerveId,r.nerveName,'amplitude',r.nerveId===NerveId.SURAL?'µV':'mV',r.amplitude,stats.amp,patient.age,lang));}
+ const issues:AnalysisIssue[]=[...score2Details.map(d=>({...d,score:'SCORE_2' as const})),...score4Details.map(d=>({...d,score:'SCORE_4' as const}))].filter(d=>d.status==='MISSING'||d.status==='INVALID').map(d=>({score:d.score,nerveId:d.nerveId,nerve:d.nerve,parameter:d.parameter,status:d.status as 'MISSING'|'INVALID'}));
+ if(issues.length)return{analysisStatus:'INCOMPLETE_ANALYSIS',issues,score2:{total:null,isAbnormal:null,details:score2Details,interpretationBody:null},score4:{total:null,isAbnormal:null,details:score4Details,severityLabel:null},severityClass:null,diagnosisClass:null};
+ const s2Total=score2Details.reduce((n,d)=>n+d.points!,0),s4Total=score4Details.reduce((n,d)=>n+d.points!,0),suralPoints=score2Details.find(d=>d.nerveId===NerveId.SURAL)!.points!,motorPoints=s2Total-suralPoints;const interpretationBody=classifyScore2(s2Total,suralPoints,motorPoints,lang),diagnosisClass=s2Total>=2?TEXTS[lang].abnormal:TEXTS[lang].normal,severityLabel=getScore4Severity(s4Total,lang);return{analysisStatus:'VALID_ANALYSIS',issues:[],score2:{total:s2Total,isAbnormal:s2Total>=2,details:score2Details,interpretationBody},score4:{total:s4Total,isAbnormal:s4Total>=1,details:score4Details,severityLabel},severityClass:`${diagnosisClass} / ${severityLabel}`,diagnosisClass};
 };
