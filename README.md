@@ -43,9 +43,9 @@ El proyecto está configurado (ver `netlify.toml` y `vite.config.ts`) para despl
 
 ## Autoría y Desarrollo
 
-*   **Concepto y Desarrollo:** Dr. Leonardo Jurado - Residente de Medicina Física y Rehabilitación, Universidad Nacional de Colombia.
-*   **Plataforma:** Desarrollada con asistencia de Inteligencia Artificial bajo la supervisión de Leo J Escobar.
-*   **Propósito:** Académico y de apoyo clínico. Sin ánimo de lucro.
+* **Desarrollo:** Dr. Pastor Leonardo Jurado Escobar.
+* **Especialidad:** Medicina Física y Rehabilitación · UNAL.
+* **Propósito:** Clinimetría para uso por especialistas en Medicina Física y Rehabilitación.
 
 ---
-© 2024 Polineuropathy-Assistant Electrodiagnóstico PMR Specialist Platform
+© 2026 · Todos los derechos reservados.
