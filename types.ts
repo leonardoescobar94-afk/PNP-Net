@@ -15,10 +15,6 @@ export interface ReferenceValue {
   nerveId: NerveId;
   nerveName: string;
   type: NerveType;
-  maxDistalLatency?: number;
-  maxPeakLatency?: number;
-  minAmplitude: number;
-  minVelocity: number;
 }
 
 export interface NerveReading {
@@ -47,10 +43,13 @@ export interface ScoreDetail {
   referenceMean?: number;
   referenceSD?: number;
   zScore?: number;
-  percentile?: number;
+  descriptiveCDFPercentile?: number;
+  empiricalReferencePercentile: 'P3' | 'P97';
+  empiricalCutoff: number;
+  cutoffDirection: 'LOWER_LIMIT' | 'UPPER_LIMIT';
   points: number | null;
-  scoringRuleId: string;
-  scoringRuleDescription: string;
+  empiricalRuleId: string;
+  empiricalRuleDescription: string;
 }
 
 export interface AnalysisIssue {
@@ -58,13 +57,14 @@ export interface AnalysisIssue {
   nerveId: NerveId;
   nerve: string;
   parameter: ScoreDetail['parameter'];
-  status: 'MISSING' | 'INVALID';
+  status: 'MISSING' | 'INVALID' | 'INCONSISTENT';
+  message?: string;
 }
 
 export interface AnalysisResult {
   analysisStatus: 'VALID_ANALYSIS' | 'INCOMPLETE_ANALYSIS';
   issues: AnalysisIssue[];
-  score2: { total: number | null; isAbnormal: boolean | null; details: ScoreDetail[]; interpretationBody: string | null; };
+  score2: { total: number | null; isAbnormal: boolean | null; status: 'NO_ABNORMALITY' | 'ISOLATED_ABNORMALITY' | 'COMPOSITE_POSITIVE' | null; abnormalNerveCount: number | null; meetsCompositeCriterion: boolean | null; details: ScoreDetail[]; interpretationBody: string | null; };
   score4: { total: number | null; isAbnormal: boolean | null; details: ScoreDetail[]; severityLabel: string | null; };
   severityClass: string | null;
   diagnosisClass: string | null;

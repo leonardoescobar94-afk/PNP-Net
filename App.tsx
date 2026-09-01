@@ -11,9 +11,9 @@ import {
 } from './types';
 import { DEFAULT_REFERENCES, TEXTS } from './constants';
 import { runFullAnalysis } from './utils/analysis';
-import { buildClinicalReportText, formatDetailValue, formatPercentile, getAppliedRuleDescriptions, translateParameter } from './utils/report';
+import { buildClinicalReportText, formatDetailValue, formatEmpiricalReference, formatParameterLabel, formatPercentile, getAppliedRuleDescriptions, translateParameter } from './utils/report';
 import { getClinicalSummary } from './services/geminiService';
-import { displayMeasurementInput } from './utils/input';
+import { displayMeasurementInput, updatePairedMeasurement } from './utils/input';
 
 // --- CONFIGURACIÓN ---
 // Cambiar a 'true' para reactivar el Asistente IA y el uso de API Keys.
@@ -71,13 +71,13 @@ const App: React.FC = () => {
     const upperValue = value.trim().toUpperCase();
     
     if (upperValue === 'NR' || upperValue === 'N') {
-      newReadings[index] = { ...newReadings[index], [field]: 'NR' };
+      newReadings[index] = updatePairedMeasurement(newReadings[index], field as 'velocity'|'peakLatency'|'amplitude', 'NR');
     } else if (value === '') {
       newReadings[index] = { ...newReadings[index], [field]: '' };
     } else {
       const sanitized = value.replace(',', '.');
       if (/^-?\d*\.?\d*$/.test(sanitized)) {
-        newReadings[index] = { ...newReadings[index], [field]: sanitized };
+        newReadings[index] = updatePairedMeasurement(newReadings[index], field as 'velocity'|'peakLatency'|'amplitude', sanitized);
       }
     }
     setReadings(newReadings);
@@ -96,7 +96,7 @@ const App: React.FC = () => {
       try {
         const analysis = runFullAnalysis(readings, patient, lang);
         if (analysis.analysisStatus === 'INCOMPLETE_ANALYSIS') {
-          const issueList = analysis.issues.map(issue => `${issue.nerve} – ${translateParameter(issue.parameter, lang)} (${issue.status})`).join('; ');
+          const issueList = analysis.issues.map(issue => `${issue.nerve} – ${translateParameter(issue.parameter, lang)} (${issue.status})${issue.message ? `: ${issue.message}` : ''}`).join('; ');
           setValidationError(`${t.incompleteAnalysis} ${issueList}`);
           setResult(null);
         } else setResult(analysis);
@@ -139,16 +139,16 @@ const App: React.FC = () => {
     doc.setFontSize(16); doc.setFont('helvetica','bold'); doc.text('Polineuropathy-Assistant PMR',14,16);
     doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.text(`${t.age}: ${patient.age} | ${t.height}: ${patient.height} cm`,14,23);
     title(`${t.score2Title}: ${result.score2.total}/8`,31);
-    autoTable(doc,{startY:34,margin:{bottom:bottomMargin},head:[[t.nerveHeader,t.paramHeader,lang==='es'?'Valor':'Value',lang==='es'?'Percentil':'Percentile','Pts']],body:result.score2.details.map(d=>[d.nerve,translateParameter(d.parameter,lang),formatDetailValue(d),formatPercentile(d),d.points]),styles:{fontSize:8}});
+    autoTable(doc,{startY:34,margin:{bottom:bottomMargin},head:[[t.nerveHeader,t.paramHeader,lang==='es'?'Valor':'Value',lang==='es'?'Percentil CDF descriptivo':'Descriptive CDF','Pts']],body:result.score2.details.map(d=>[d.nerve,translateParameter(d.parameter,lang),formatDetailValue(d),formatPercentile(d),d.points]),styles:{fontSize:8}});
     // @ts-ignore
     let y=doc.lastAutoTable.finalY+8;
     const conclusion=doc.splitTextToSize(`${t.finalClass}: ${result.score2.interpretationBody}`,180); y=ensureSpace(conclusion.length*4+8,y); doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.text(conclusion,14,y); y+=conclusion.length*4+7;
     y=ensureSpace(18,y); title(`${t.score4Title}: ${result.score4.total}/8 — ${t.severity}: ${result.score4.severityLabel}`,y);
-    autoTable(doc,{startY:y+3,margin:{bottom:bottomMargin},head:[[t.nerveHeader,lang==='es'?'Valor':'Value',lang==='es'?'Percentil':'Percentile','Pts']],body:result.score4.details.map(d=>[d.nerve,formatDetailValue(d),formatPercentile(d),d.points]),styles:{fontSize:8}});
+    autoTable(doc,{startY:y+3,margin:{bottom:bottomMargin},head:[[t.nerveHeader,lang==='es'?'Valor':'Value',lang==='es'?'Percentil CDF descriptivo':'Descriptive CDF','Pts']],body:result.score4.details.map(d=>[d.nerve,formatDetailValue(d),formatPercentile(d),d.points]),styles:{fontSize:8}});
     // @ts-ignore
     y=doc.lastAutoTable.finalY+9; y=ensureSpace(16,y); title(lang==='es'?'Puntos de corte y reglas de puntuación':'Cutoffs and scoring rules',y); y+=5;
     doc.setFont('helvetica','normal'); doc.setFontSize(8);
-    for(const rule of getAppliedRuleDescriptions(result,lang)){const lines=doc.splitTextToSize(`• ${rule}`,180);y=ensureSpace(lines.length*4+3,y);doc.text(lines,14,y);y+=lines.length*4+2;}
+    for(const rule of getAppliedRuleDescriptions(result)){const lines=doc.splitTextToSize(`• ${rule}`,180);y=ensureSpace(lines.length*4+3,y);doc.text(lines,14,y);y+=lines.length*4+2;}
     const pages=doc.getNumberOfPages(); for(let page=1;page<=pages;page++){doc.setPage(page);doc.setFontSize(7);doc.text(`${page}/${pages}`,196,pageHeight-7,{align:'right'});doc.text('Polineuropathy-Assistant PMR',14,pageHeight-7);}
     doc.save(`Report_PM&R_${new Date().toISOString().split('T')[0]}.pdf`);
   };
@@ -302,7 +302,8 @@ const App: React.FC = () => {
                 
                 <div className="relative z-10 space-y-4">
                    <div>
-                      <p className={`text-xl md:text-2xl font-black leading-tight ${result.score2.isAbnormal ? 'text-red-300 print:text-red-700' : 'text-green-300 print:text-green-700'}`}>
+                      <p className="text-xs font-black tracking-widest mb-2">{result.diagnosisClass}</p>
+                      <p className={`text-xl md:text-2xl font-black leading-tight ${result.score2.status==='COMPOSITE_POSITIVE'?'text-red-300 print:text-red-700':result.score2.status==='ISOLATED_ABNORMALITY'?'text-amber-300 print:text-amber-700':'text-green-300 print:text-green-700'}`}>
                         {result.score2.interpretationBody}
                       </p>
                    </div>
@@ -323,24 +324,25 @@ const App: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm print:p-4 relative overflow-hidden">
-                  <div className={`absolute top-0 left-0 w-1 h-full ${result.score2.isAbnormal ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                  <div className={`absolute top-0 left-0 w-1 h-full ${result.score2.status==='COMPOSITE_POSITIVE'?'bg-red-500':result.score2.status==='ISOLATED_ABNORMALITY'?'bg-amber-500':'bg-green-500'}`}></div>
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest">Detalle {t.score2Title}</h3>
-                    <div className={`px-2 py-1 rounded-md text-sm font-black ${result.score2.isAbnormal ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                    <div className={`px-2 py-1 rounded-md text-sm font-black ${result.score2.status==='COMPOSITE_POSITIVE'?'bg-red-50 text-red-600':result.score2.status==='ISOLATED_ABNORMALITY'?'bg-amber-50 text-amber-700':'bg-green-50 text-green-600'}`}>
                       {result.score2.total} / 8 {t.points}
                     </div>
                   </div>
                   <div className="space-y-3">
                     {result.score2.details.map((d, i) => (
                       <div key={i} className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-lg">
-                        <span className="font-medium text-slate-600">{d.nerve}</span>
+                        <span className="font-medium text-slate-600">{d.nerve} — {formatParameterLabel(d,lang)}<br/><span className="text-slate-400">{formatDetailValue(d)}{d.status==='VALID'&&<> · {lang==='es'?'Percentil CDF descriptivo':'Descriptive CDF percentile'}: {formatPercentile(d)}</>}<br/>{lang==='es'?'Referencia empírica':'Empirical reference'}: {formatEmpiricalReference(d,lang)}</span></span>
                         <div className="flex items-center gap-3">
-                          <span className="text-slate-400 font-bold">{formatPercentile(d)}</span>
                           <span className={`font-black ${d.points > 0 ? 'text-red-500' : 'text-slate-400'}`}>{d.points} pt</span>
                         </div>
                       </div>
                     ))}
                   </div>
+                  <div className="mt-4 font-bold text-sm">{lang==='es'?'Nervios anormales':'Abnormal nerves'}: {result.score2.abnormalNerveCount}/4<br/>{lang==='es'?'Criterio electrodiagnóstico compuesto':'Composite electrodiagnostic criterion'}: {result.score2.meetsCompositeCriterion?(lang==='es'?'CUMPLE':'MET'):(lang==='es'?'NO CUMPLE':'NOT MET')}</div>
+                  <p className="mt-3 text-[11px] text-slate-500">{lang==='es'?'Score electrodiagnóstico adaptado desarrollado para esta herramienta a partir del enfoque compuesto descrito por Davies et al., con límites empíricos Buschbacher/AANEM. Cada respuesta recibe 0 puntos dentro de P3/P97, 1 fuera del límite y 2 si es NR; el criterio requiere ≥2 de 4 nervios anormales.':'Adapted electrodiagnostic score developed for this tool from the composite approach described by Davies et al., using Buschbacher/AANEM empirical limits. Responses score 0 within P3/P97, 1 outside the limit, and 2 if NR; the criterion requires ≥2 of 4 abnormal nerves.'}</p>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm print:p-4 relative overflow-hidden">
@@ -354,14 +356,14 @@ const App: React.FC = () => {
                   <div className="space-y-3">
                     {result.score4.details.map((d, i) => (
                       <div key={i} className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-lg">
-                        <span className="font-medium text-slate-600">{d.nerve}</span>
+                        <span className="font-medium text-slate-600">{d.nerve} — {formatParameterLabel(d,lang)}<br/><span className="text-slate-400">{formatDetailValue(d)}{d.status==='VALID'&&<> · {lang==='es'?'Percentil CDF descriptivo':'Descriptive CDF percentile'}: {formatPercentile(d)}</>}<br/>{lang==='es'?'Referencia empírica':'Empirical reference'}: {formatEmpiricalReference(d,lang)}</span></span>
                         <div className="flex items-center gap-3">
-                          <span className="text-slate-400 font-bold">{formatPercentile(d)}</span>
                           <span className={`font-black ${d.points > 0 ? 'text-red-500' : 'text-slate-400'}`}>{d.points} pt</span>
                         </div>
                       </div>
                     ))}
                   </div>
+                  <p className="mt-3 text-[11px] text-slate-500">{lang==='es'?'Score de severidad por amplitudes CMAP/SNAP con límites empíricos P3 Buschbacher/AANEM: 0 dentro del límite, 1 por debajo y 2 si NR. Clasificación provisional: 0 sin daño axonal, 1–2 leve, 3–5 moderada, 6–8 severa.':'CMAP/SNAP amplitude severity score using Buschbacher/AANEM empirical P3 limits: 0 within the limit, 1 below it, and 2 if NR. Provisional classification: 0 no axonal damage, 1–2 mild, 3–5 moderate, 6–8 severe.'}</p>
                 </div>
               </div>
 
