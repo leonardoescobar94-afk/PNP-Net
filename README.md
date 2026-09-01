@@ -2,15 +2,15 @@
 
 **Herramienta Profesional para Especialistas en Medicina Física y Rehabilitación.**
 
-Esta aplicación es una herramienta avanzada diseñada para asistir en el análisis de estudios de neuroconducción, facilitando la comparación con valores de referencia y la clasificación de la severidad de la neuropatía diabética sensitivo-motora según la escala de Davies et al.
+Score electrodiagnóstico percentilar adaptado para apoyo al diagnóstico y cuantificación de la polineuropatía diabética. Emplea el marco conceptual compuesto 0–1–2 descrito por Davies et al. y límites normativos empíricos P3/P97 publicados por Buschbacher/AANEM; no reproduce el score original.
 
 ## Características Principales
 
-*   **Análisis Automático:** Cálculo de Score #2 (Diagnóstico) y Score #4 (Severidad) basado en percentiles normalizados.
-*   **Ajuste Dinámico:** Valores de referencia ajustados automáticamente por edad y altura del paciente.
+*   **Análisis automático:** Score #2 compuesto basado en cuatro nervios y Score #4 provisional por amplitudes, ambos puntuados mediante límites absolutos P3/P97.
+*   **Estandarización descriptiva:** La media, la desviación estándar y el percentil CDF descriptivo se ajustan de forma continua por edad y/o talla mediante las fórmulas LERP existentes. Los puntos no se interpolan: la puntuación determinista utiliza exclusivamente los estratos empíricos publicados P3/P97 que correspondan.
 *   **Asistente con IA:** Integración con Google Gemini para generar resúmenes clínicos y sugerencias de seguimiento basadas en los hallazgos.
-*   **Generación de Informes:** Exportación de resultados en formatos PDF profesional y TXT para historias clínicas.
-*   **Referencias Académicas:** Basado en estudios de Dyck, Buschbacher y Davies (Rochester Diabetic Neuropathy Study).
+*   **Informes clínicos:** Copia prioritaria de un resumen determinista al portapapeles y exportación PDF secundaria.
+*   **Trazabilidad científica:** Los percentiles de CDF normal se conservan únicamente como estandarización descriptiva; las clasificaciones adaptadas requieren validación clínica independiente.
 
 ## Requisitos Previos
 

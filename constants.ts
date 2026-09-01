@@ -1,42 +1,33 @@
 import { NERVE_NAMES, NerveId, NerveType, type ReferenceValue } from './types.ts';
 
-// Valores base. Los límites reales se calculan dinámicamente en analysis.ts
+// Canonical nerve metadata only; empirical scoring limits have one source of truth in analysis.ts.
 export const DEFAULT_REFERENCES: ReferenceValue[] = [
   {
     nerveId: NerveId.TIBIAL,
     nerveName: NERVE_NAMES[NerveId.TIBIAL],
-    type: NerveType.MOTOR,
-    minAmplitude: 0, // Dinámico
-    minVelocity: 0   // Dinámico
+    type: NerveType.MOTOR
   },
   {
     nerveId: NerveId.FIBULAR,
     nerveName: NERVE_NAMES[NerveId.FIBULAR],
-    type: NerveType.MOTOR,
-    minAmplitude: 0, // Dinámico
-    minVelocity: 0   // Dinámico
+    type: NerveType.MOTOR
   },
   {
     nerveId: NerveId.ULNAR,
     nerveName: NERVE_NAMES[NerveId.ULNAR],
-    type: NerveType.MOTOR,
-    minAmplitude: 7.4, // 11.6 - (2 * 2.1)
-    minVelocity: 51    // 61 - (2 * 5)
+    type: NerveType.MOTOR
   },
   {
     nerveId: NerveId.SURAL,
     nerveName: NERVE_NAMES[NerveId.SURAL],
-    type: NerveType.SENSORY,
-    maxPeakLatency: 4.4, // 3.8 + (2 * 0.3)
-    minAmplitude: 0,      // 17 - (2 * 10) -> se tratará con cuidado por ser SD alta
-    minVelocity: 0
+    type: NerveType.SENSORY
   }
 ];
 
 export const TEXTS = {
   es: {
     title: "Polineuropathy-Assistant PMR",
-    subtitle: "Clasificación electrofisiológica de la severidad de la polineuropatía diabética.",
+    subtitle: "Score electrodiagnóstico percentilar adaptado para apoyo al diagnóstico y cuantificación de la polineuropatía diabética.",
     professionalTool: "HERRAMIENTA PROFESIONAL",
     basedOn: "Score electrodiagnóstico percentilar adaptado del enfoque de puntuación compuesta descrito por Davies et al.",
     patientInfo: "Información del Paciente",
@@ -63,9 +54,9 @@ export const TEXTS = {
     finalClass: "Clasificación Electrofisiológica",
     diagnosis: "Diagnóstico",
     severity: "SEVERIDAD",
-    score2Title: "Score #2 (Conducción)",
-    score4Title: "Score #4 (Amplitud)",
-    copySummary: "Copiar resumen",
+    score2Title: "Score #2 — Criterio diagnóstico compuesto",
+    score4Title: "Score #4 — Severidad por amplitudes",
+    copySummary: "COPIAR RESUMEN PARA INFORME",
     copied: "Copiado",
     ageValidation: "La edad debe estar entre 19 y 79 años para calcular los scores.",
     heightValidation: "La talla debe ser un número válido mayor que 0 cm.",
@@ -93,19 +84,18 @@ export const TEXTS = {
     points: "PTS",
     // Interpretation strings updated to specific phrases
     s2NormalTitle: "NORMAL",
-    s2NormalBody: "NEUROCONDUCCIONES NORMALES, NEGATIVO PARA POLINEUROPATÍA",
-    s2SensoryBody: "NEUROCONDUCCIONES ANORMALES COMPATIBLES CON POLINEUROPATÍA DIABÉTICA SENSITIVA",
-    s2SensorimotorBody: "NEUROCONDUCCIONES ANORMALES COMPATIBLES CON POLINEUROPATÍA DIABÉTICA SENSITIVO MOTORA",
-    s2AbnormalGeneric: "NEUROCONDUCCIONES ANORMALES (Patrón No Específico)",
+    s2NormalBody: "Los parámetros de conducción evaluados se encuentran dentro de los límites empíricos de referencia. No cumple criterio electrodiagnóstico compuesto para polineuropatía diabética.",
+    s2SensorimotorBody: "Neuroconducciones anormales que cumplen el criterio electrodiagnóstico compuesto, con patrón sensitivo-motor compatible con polineuropatía en el contexto clínico apropiado.",
+    s2AbnormalGeneric: "Neuroconducciones anormales que cumplen el criterio electrodiagnóstico compuesto por alteración de ≥2 nervios motores. Hallazgo compatible con polineuropatía en el contexto clínico apropiado; correlacionar con los hallazgos sensitivos y clínicos.",
     nStageLabel: "Estadiaje N",
-    n0Desc: "Sin anomalías en las neuroconducciones",
+    n0Desc: "N0: No cumple criterio electrodiagnóstico compuesto de Score #2. Puede existir una alteración aislada en un nervio.",
     n1Desc: "Neuroconducciones anormales sin signos de neuropatía",
     n2Desc: "Neuroconducciones anormales y signos de polineuropatía en pies o piernas",
     n3Desc: "Neuroconducciones anormales y signos de afectación del muslo"
   },
   en: {
     title: "Polineuropathy-Assistant PMR",
-    subtitle: "Electrophysiological classification of diabetic polyneuropathy severity.",
+    subtitle: "Adapted percentile-based electrodiagnostic score for diagnostic support and quantification of diabetic polyneuropathy.",
     professionalTool: "PROFESSIONAL TOOL",
     basedOn: "Percentile-based electrodiagnostic score adapted from the compound scoring approach described by Davies et al.",
     patientInfo: "Patient Information",
@@ -132,9 +122,9 @@ export const TEXTS = {
     finalClass: "Electrophysiological Classification",
     diagnosis: "Diagnosis",
     severity: "SEVERITY",
-    score2Title: "Score #2 (Conduction)",
-    score4Title: "Score #4 (Amplitude)",
-    copySummary: "Copy summary",
+    score2Title: "Score #2 — Composite diagnostic criterion",
+    score4Title: "Score #4 — Amplitude severity",
+    copySummary: "COPY SUMMARY FOR REPORT",
     copied: "Copied",
     ageValidation: "Age must be between 19 and 79 years to calculate the scores.",
     heightValidation: "Height must be a valid number greater than 0 cm.",
@@ -162,12 +152,11 @@ export const TEXTS = {
     points: "PTS",
     // Interpretation strings
     s2NormalTitle: "NORMAL",
-    s2NormalBody: "NORMAL NERVE CONDUCTIONS, NEGATIVE FOR POLYNEUROPATHY",
-    s2SensoryBody: "ABNORMAL NERVE CONDUCTIONS COMPATIBLE WITH SENSORY DIABETIC POLYNEUROPATHY",
-    s2SensorimotorBody: "ABNORMAL NERVE CONDUCTIONS COMPATIBLE WITH SENSORIMOTOR DIABETIC POLYNEUROPATHY",
-    s2AbnormalGeneric: "ABNORMAL NERVE CONDUCTIONS (Non-specific Pattern)",
+    s2NormalBody: "The evaluated conduction parameters are within empirical reference limits. The composite electrodiagnostic criterion for diabetic polyneuropathy is not met.",
+    s2SensorimotorBody: "Abnormal nerve conductions meet the composite electrodiagnostic criterion, with a sensorimotor pattern compatible with polyneuropathy in the appropriate clinical context.",
+    s2AbnormalGeneric: "Abnormal nerve conductions meet the composite electrodiagnostic criterion through abnormality in ≥2 motor nerves. This finding is compatible with polyneuropathy in the appropriate clinical context; correlate with sensory and clinical findings.",
     nStageLabel: "N Staging",
-    n0Desc: "No anomalies in nerve conductions",
+    n0Desc: "N0: Does not meet the Score #2 composite electrodiagnostic criterion. An isolated abnormality in one nerve may be present.",
     n1Desc: "Abnormal nerve conductions without signs of neuropathy",
     n2Desc: "Abnormal nerve conductions and signs of polyneuropathy in feet or legs",
     n3Desc: "Abnormal nerve conductions and signs of thigh involvement"
