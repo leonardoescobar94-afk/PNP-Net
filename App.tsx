@@ -14,6 +14,8 @@ import { runFullAnalysis } from './utils/analysis';
 import { buildClinicalReportText, formatDetailValue, formatEmpiricalReference, formatParameterLabel, formatPercentile, getAppliedRuleDescriptions, translateParameter } from './utils/report';
 import { getClinicalSummary } from './services/geminiService';
 import { displayMeasurementInput, updatePairedMeasurement } from './utils/input';
+import { DevelopmentContent } from './components/DevelopmentContent';
+import { ScientificReferences } from './components/ScientificReferences';
 
 // --- CONFIGURACIÓN ---
 // Cambiar a 'true' para reactivar el Asistente IA y el uso de API Keys.
@@ -441,12 +443,7 @@ const App: React.FC = () => {
           </button>
           {activeAccordion === 'references' && (
             <div className="p-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-600 leading-relaxed space-y-3">
-              <p>1. Dyck, P. J. , Kratz, K. M. , Lehman, K. A. , Karnes, J. L. , Melton, L. J. , O'Brien, P. C. , Litchy, W. J. , Windebank, A. J. , Smith, B. E. , Low, P. A. , Service, F. J. , Rizza, R. A. & Zimmerman, B. R. (1991). The Rochester Diabetic Neuropathy Study. Neurology, 41 (6), 799-807.</p>
-              <p>2. Kumbhare D, Robinson L, Buschbacher R. Buschbacher’s manual of nerve conduction studies. 3rd ed. New York: Springer Publishing Company; 2015. 1 p.</p>
-              <p>3. Davies JL, Lodermeier KA, Klein DM, Carter RE, Dyck PJB, Litchy WJ, Dyck PJ. Composite nerve conduction scores and signs for diagnosis and somatic staging of diabetic polyneuropathy: Mid North American ethnic cohort survey. Muscle Nerve. 2023 Jul;68(1):29-38. doi: 10.1002/mus.27793. Epub 2023 Mar 1. PMID: 36734298; PMCID: PMC10272036.</p>
-              <p>4. Buschbacher RM. Tibial nerve motor conduction to the abductor hallucis. Am J Phys Med Rehabil. 1999 Nov-Dec;78(6 Suppl):S15-20. doi: 10.1097/00002060-199911001-00004. PMID: 10573092.</p>
-              <p>5. Buschbacher RM. Peroneal nerve motor conduction to the extensor digitorum brevis. Am J Phys Med Rehabil. 1999 Nov-Dec;78(6 Suppl):S26-31. doi: 10.1097/00002060-199911001-00006. PMID: 10573094.</p>
-              <p>6. Buschbacher RM. Ulnar nerve motor conduction to the abductor digiti minimi. Am J Phys Med Rehabil. 1999 Nov-Dec;78(6 Suppl):S9-14. doi: 10.1097/00002060-199911001-00003. PMID: 10573091.</p>
+              <ScientificReferences />
             </div>
           )}
         </div>
@@ -460,18 +457,16 @@ const App: React.FC = () => {
             <svg className={`w-5 h-5 transition-transform ${activeAccordion === 'development' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
           </button>
           {activeAccordion === 'development' && (
-            <div className="p-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-600 leading-relaxed space-y-2">
-              <p>{t.developmentText1}</p>
-              <p>{t.developmentText2}</p>
-              <p>{t.developmentText3}</p>
-              <p className="font-bold italic">{t.developmentText4}</p>
-            </div>
+            <DevelopmentContent lang={lang} />
           )}
         </div>
       </section>
 
-      <footer className="max-w-6xl mx-auto mt-12 py-8 border-t border-slate-200 text-center print:hidden">
-        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">{t.footer}</p>
+      <footer className="max-w-6xl mx-auto mt-12 py-8 px-4 border-t border-slate-200 text-center print:hidden">
+        <p className="text-sm text-slate-600 mb-4">{t.footerPurpose}</p>
+        <p className="text-sm font-semibold text-slate-700">{t.footerDeveloper}</p>
+        <p className="text-xs text-slate-400 mt-1">{t.footerSpecialty}</p>
+        <p className="text-xs text-slate-400 mt-1">{t.footerCopyright}</p>
       </footer>
     </div>
   );
