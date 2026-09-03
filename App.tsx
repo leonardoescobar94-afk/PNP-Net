@@ -160,10 +160,10 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 print:p-0">
+    <div className="min-h-screen bg-slate-50 p-3 sm:p-4 md:p-8 print:p-0">
       <header className="max-w-6xl mx-auto mb-8 flex flex-col md:flex-row items-start md:items-center justify-between border-b border-slate-200 pb-6 gap-4 print:mb-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Polineuropathy-Assistant <span className="text-blue-600">PMR</span></h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">Polineuropathy-Assistant <span className="text-blue-600">PMR</span></h1>
           <p className="text-slate-600 font-medium text-sm mt-1">{t.subtitle}</p>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -181,9 +181,9 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
         <div className="lg:col-span-4 space-y-6 print:hidden">
-          <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <section className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
             <h2 className="text-sm font-bold text-slate-800 uppercase mb-4 flex items-center gap-2">
               <div className="w-1.5 h-4 bg-blue-600 rounded-full"></div>
               {t.patientInfo}
@@ -212,7 +212,51 @@ const App: React.FC = () => {
         <div className="lg:col-span-8 space-y-6 print:col-span-12">
           <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print:border-none print:shadow-none">
             <h2 className="hidden print:block text-xs font-bold text-slate-500 uppercase px-6 pt-4 mb-2">{t.readingsTitle}</h2>
-            <table className="w-full text-left">
+            <div className="sm:hidden divide-y divide-slate-100">
+              {readings.map((r, idx) => {
+                const isSural = r.nerveId === NerveId.SURAL;
+                const mainValue = isSural ? r.peakLatency : r.velocity;
+
+                return (
+                  <div key={idx} className="p-4">
+                    <div className="mb-3">
+                      <div className="font-bold text-slate-700">{r.nerveName}</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase">{r.type}</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="min-w-0">
+                        <span className="block min-h-8 text-[10px] leading-4 text-slate-500 font-bold mb-1">
+                          {isSural ? t.latency : t.velocity}
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={displayMeasurementInput(mainValue)}
+                          onChange={(e) => handleReadingChange(idx, isSural ? 'peakLatency' : 'velocity', e.target.value)}
+                          placeholder="0.0 / NR"
+                          className="w-full min-h-12 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-center text-base font-semibold focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                        />
+                      </label>
+                      <label className="min-w-0">
+                        <span className="block min-h-8 text-[10px] leading-4 text-slate-500 font-bold mb-1">
+                          {isSural ? t.ampHeaderSural.toUpperCase() : t.ampHeader.toUpperCase()} ({isSural ? t.ampUnitSural : t.ampUnitMotor})
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={displayMeasurementInput(r.amplitude)}
+                          onChange={(e) => handleReadingChange(idx, 'amplitude', e.target.value)}
+                          placeholder="0.0 / NR"
+                          className="w-full min-h-12 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-center text-base font-semibold focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <table className="hidden sm:table w-full text-left print:table">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{t.nerveHeader}</th>
@@ -269,14 +313,14 @@ const App: React.FC = () => {
           {result && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="bg-blue-900 text-white p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden print:bg-slate-50 print:text-slate-900 print:shadow-none print:border print:border-slate-200 print:p-6">
-                <div className="relative z-20 flex justify-between items-start mb-4">
+                <div className="relative z-20 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
                   <h2 className="text-blue-200 text-[10px] font-black uppercase tracking-[0.2em] print:text-slate-500 pt-1">
                     {t.finalClass}
                   </h2>
-                  <div className="flex gap-2 print:hidden">
+                  <div className="flex flex-wrap gap-2 w-full sm:w-auto print:hidden">
                       <button 
                         onClick={handleCopySummary}
-                        className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg transition cursor-pointer flex items-center gap-2"
+                        className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg transition cursor-pointer flex items-center justify-center gap-2 flex-1 sm:flex-none"
                         title={t.copySummary}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
