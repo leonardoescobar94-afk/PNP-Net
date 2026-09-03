@@ -212,7 +212,7 @@ const App: React.FC = () => {
         <div className="lg:col-span-8 space-y-6 print:col-span-12">
           <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print:border-none print:shadow-none">
             <h2 className="hidden print:block text-xs font-bold text-slate-500 uppercase px-6 pt-4 mb-2">{t.readingsTitle}</h2>
-            <div className="sm:hidden divide-y divide-slate-100">
+            <div className="sm:hidden print:hidden divide-y divide-slate-100">
               {readings.map((r, idx) => {
                 const isSural = r.nerveId === NerveId.SURAL;
                 const mainValue = isSural ? r.peakLatency : r.velocity;
