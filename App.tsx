@@ -192,11 +192,11 @@ const App: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.age}</label>
-                  <input type="number" inputMode="decimal" name="age" value={patient.age} onChange={handlePatientChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input type="number" inputMode="decimal" name="age" value={patient.age} onChange={handlePatientChange} className="w-full min-h-12 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.height}</label>
-                  <input type="number" inputMode="decimal" name="height" value={patient.height} onChange={handlePatientChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input type="number" inputMode="decimal" name="height" value={patient.height} onChange={handlePatientChange} className="w-full min-h-12 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
               </div>
             </div>
